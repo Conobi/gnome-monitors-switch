@@ -18,21 +18,21 @@ def get_display_config():
 	return (dc_iface.GetCurrentState())
 
 def build_display_config(display_config, persistent):
-	serial, monitors, lms, properties = display_config
-
+	_, monitors, lms, _ = display_config
 	def build_monitors(connector, monitors):
 		submonitors = []
 		for monitor in monitors:
 			mode_id = monitor[1][0]
 			if (monitor[0] == connector):
-				submonitors.append(monitor[0][0])
 				for mode in monitor[1]:
-					if len(mode[6]) and mode[6]['is-current'] == 1:
-						mode_id = mode[0]
-				submonitors.append(mode_id)
-				# submonitors.append({})
-				submonitors.append(monitor[2])
-		return ([submonitors])
+					if len(mode[6]) and mode[6]['is-current'] == True:
+							new_mode = []
+							new_mode.append(monitor[0][0])
+							mode_id = mode[0]
+							new_mode.append(mode_id)
+							new_mode.append(monitor[2])
+							submonitors.append(new_mode)
+		return (submonitors)
 
 	new_lms = []
 
@@ -45,14 +45,15 @@ def build_display_config(display_config, persistent):
 						lm[4],
 						build_monitors(lm[5][0], monitors),
 			])
-	return (serial, persistent, new_lms, {})
+	return (persistent, new_lms, {})
 
 def apply_display_config(builded_config):
 	bus = dbus.SessionBus()
 	dc = bus.get_object('org.gnome.Mutter.DisplayConfig',
 						'/org/gnome/Mutter/DisplayConfig')
 	dc_iface = dbus.Interface(dc, dbus_interface='org.gnome.Mutter.DisplayConfig')
-	serial, persistent, new_lms, properties = builded_config
+	persistent, new_lms, properties = builded_config
+	serial, *_ = get_display_config()
 	return(dc_iface.ApplyMonitorsConfig(serial, persistent, new_lms, properties))
 
 if not (args.filename and (args.save or args.load)):
@@ -63,7 +64,7 @@ elif (args.filename and args.save and args.load):
 
 if (args.filename and args.save):
 	with open(args.filename[0] + '.json', 'w') as outfile:
-		data_builded = build_display_config(get_display_config(), args.persistent)
+		data_builded = build_display_config(get_display_config(), args.persistent + 1)
 		json.dump(data_builded, outfile, indent=2)
 	print('The config has been saved in ' + args.filename[0] + '.json.')
 
